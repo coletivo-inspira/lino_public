@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#040507" />
+    <title>LINO — uma interface para presença contínua</title>
+    <meta
+      name="description"
+      content="Experiência contemplativa e cinematográfica sobre presença, continuidade e percepção."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Manrope:wght@200;300;400&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="glow glow--primary" aria-hidden="true"></div>
+    <div class="glow glow--secondary" aria-hidden="true"></div>
+    <div class="glow glow--tertiary" aria-hidden="true"></div>
+
+    <canvas id="particles" aria-hidden="true"></canvas>
+
+    <main class="stage">
+      <section class="opening" aria-hidden="false">
+        <p class="opening__line">algumas percepções iluminam</p>
+      </section>
+
+      <section class="thoughts" id="thoughts" aria-hidden="true"></section>
+
+      <section class="final" id="final" aria-hidden="true">
+        <h1 class="final__mark">LINO</h1>
+        <p class="final__subtitle">uma interface para presença contínua</p>
+      </section>
+    </main>
+
+    <script src="main.js" defer></script>
+  </body>
+</html>
