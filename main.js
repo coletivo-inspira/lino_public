@@ -12,6 +12,7 @@
     orbVisible: false,
     particlesActive: false,
     slowdown: false,
+    finalActive: false,
   };
 
   const orb = {
@@ -19,11 +20,45 @@
     y: 0,
     tx: 0,
     ty: 0,
+    px: 0,
+    py: 0,
     alpha: 0,
     breath: 0,
   };
 
+  const TAU = Math.PI * 2;
   const trails = [];
+
+  function createOrbSystem(config) {
+    const sats = new Array(config.count).fill(0).map(() => {
+      const dir = Math.random() > 0.5 ? 1 : -1;
+      const baseRadius = config.radiusMin + Math.random() * (config.radiusMax - config.radiusMin);
+      return {
+        angle: Math.random() * TAU,
+        baseRadius,
+        radius: baseRadius,
+        speed: dir * (config.speedMin + Math.random() * (config.speedMax - config.speedMin)),
+        size: config.sizeMin + Math.random() * (config.sizeMax - config.sizeMin),
+        phase: Math.random() * TAU,
+      };
+    });
+
+    return {
+      sats,
+      fusion: 0,
+      singularitySpin: 0,
+    };
+  }
+
+  const resetOrbSystem = createOrbSystem({
+    count: 12,
+    radiusMin: 16,
+    radiusMax: 36,
+    speedMin: 0.008,
+    speedMax: 0.018,
+    sizeMin: 1.4,
+    sizeMax: 3.4,
+  });
 
   function resize() {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -38,6 +73,10 @@
     orb.y = height * 0.48;
     orb.tx = orb.x;
     orb.ty = orb.y;
+    orb.px = orb.x;
+    orb.py = orb.y;
+    pointerAbsX = width * 0.5;
+    pointerAbsY = height * 0.5;
     seedParticles();
   }
 
@@ -63,6 +102,8 @@
 
   let pointerX = 0;
   let pointerY = 0;
+  let pointerAbsX = 0;
+  let pointerAbsY = 0;
   let targetPX = 0;
   let targetPY = 0;
   let hasPointer = false;
@@ -71,6 +112,8 @@
     "pointermove",
     (e) => {
       hasPointer = true;
+      pointerAbsX = e.clientX;
+      pointerAbsY = e.clientY;
       targetPX = (e.clientX / width - 0.5) * 2;
       targetPY = (e.clientY / height - 0.5) * 2;
     },
@@ -81,12 +124,86 @@
     hasPointer = false;
   });
 
-  function drawOrb(now) {
-    const driftX = hasPointer ? targetPX * width * 0.11 : Math.sin(now * 0.00022) * width * 0.04;
-    const driftY = hasPointer ? targetPY * height * 0.1 : Math.cos(now * 0.00018) * height * 0.03;
+  function drawResetSatellites(now, centerX, centerY, alpha, system) {
+    const speedBoost = 1 + system.fusion * 2.6;
 
-    orb.tx = width * 0.5 + driftX;
-    orb.ty = height * 0.48 + driftY;
+    for (const sat of system.sats) {
+      sat.angle += sat.speed * speedBoost;
+      const orbitRadius = sat.baseRadius * (1 + 0.12 * Math.sin(now * 0.0017 + sat.phase));
+      const fusedRadius = 7 + 2.2 * Math.sin(now * 0.005 + sat.phase);
+      const targetRadius = orbitRadius * (1 - system.fusion) + fusedRadius * system.fusion;
+      sat.radius += (targetRadius - sat.radius) * (0.08 + system.fusion * 0.12);
+
+      const sx = centerX + Math.cos(sat.angle) * sat.radius;
+      const sy = centerY + Math.sin(sat.angle) * sat.radius;
+      const satAlpha = alpha * (0.66 + system.fusion * 0.26);
+
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(255, 224, 182, ${satAlpha * 0.52})`;
+      ctx.arc(sx, sy, sat.size * 2.3, 0, TAU);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(255, 238, 214, ${satAlpha})`;
+      ctx.arc(sx, sy, sat.size, 0, TAU);
+      ctx.fill();
+    }
+
+    if (system.fusion > 0.52) {
+      system.singularitySpin += 0.16;
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        ctx.strokeStyle = `rgba(255, 225, 180, ${alpha * system.fusion * (0.2 - i * 0.04)})`;
+        ctx.lineWidth = 1.4 - i * 0.25;
+        ctx.arc(centerX, centerY, 14 + i * 5, system.singularitySpin + i * 0.9, system.singularitySpin + i * 0.9 + 2.1);
+        ctx.stroke();
+      }
+    }
+  }
+
+  function drawOrbCore(centerX, centerY, alpha, breathFactor) {
+    const glowRadius = (68 + Math.sin(orb.breath * 0.6) * 8) * breathFactor;
+    const innerRadius = 10.5 * breathFactor;
+
+    const glow = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, glowRadius);
+    glow.addColorStop(0, `rgba(255, 225, 190, ${0.24 * alpha})`);
+    glow.addColorStop(0.45, `rgba(236, 206, 170, ${0.095 * alpha})`);
+    glow.addColorStop(1, "rgba(255, 220, 170, 0)");
+    ctx.beginPath();
+    ctx.fillStyle = glow;
+    ctx.arc(centerX, centerY, glowRadius, 0, TAU);
+    ctx.fill();
+
+    const core = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, innerRadius);
+    core.addColorStop(0, `rgba(255, 240, 220, ${0.88 * alpha})`);
+    core.addColorStop(1, `rgba(255, 210, 170, ${0.05 * alpha})`);
+    ctx.beginPath();
+    ctx.fillStyle = core;
+    ctx.arc(centerX, centerY, innerRadius, 0, TAU);
+    ctx.fill();
+  }
+
+  function getResetCenter() {
+    const resetControl = document.getElementById("resetExperience");
+    if (!resetControl || !stageState.finalActive) return null;
+    const rect = resetControl.getBoundingClientRect();
+    return {
+      x: rect.left + rect.width * 0.5,
+      y: rect.top + rect.height * 0.42,
+    };
+  }
+
+  function drawOrb(now) {
+    if (hasPointer) {
+      orb.tx = pointerAbsX;
+      orb.ty = pointerAbsY;
+    } else {
+      const driftX = Math.sin(now * 0.00019) * width * 0.22;
+      const driftY = Math.cos(now * 0.00015) * height * 0.18;
+      orb.tx = width * 0.5 + driftX;
+      orb.ty = height * 0.5 + driftY;
+    }
+
     orb.x += (orb.tx - orb.x) * 0.035;
     orb.y += (orb.ty - orb.y) * 0.035;
     orb.alpha += ((stageState.orbVisible ? 1 : 0) - orb.alpha) * 0.02;
@@ -97,50 +214,69 @@
       return;
     }
 
-    if (now % 3 < 1.2) {
+    const speed = Math.hypot(orb.x - orb.px, orb.y - orb.py);
+    orb.px = orb.x;
+    orb.py = orb.y;
+
+    if (speed > 0.25 || Math.random() < 0.14) {
       trails.push({
         x: orb.x,
         y: orb.y,
         life: 1,
-        r: 7 + Math.random() * 8,
+        r: 5 + Math.min(9, speed * 0.85),
       });
+    }
+
+    while (trails.length > 34) {
+      trails.shift();
     }
 
     for (let i = trails.length - 1; i >= 0; i--) {
       const t = trails[i];
-      t.life -= 0.017;
-      t.r += 0.06;
+      t.life -= 0.024;
+      t.r += 0.07;
       if (t.life <= 0) {
         trails.splice(i, 1);
         continue;
       }
-      const a = t.life * 0.085 * orb.alpha;
+      const a = t.life * 0.11 * orb.alpha;
       ctx.beginPath();
       ctx.fillStyle = `rgba(255, 220, 170, ${a})`;
-      ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2);
+      ctx.arc(t.x, t.y, t.r, 0, TAU);
       ctx.fill();
     }
 
-    const breath = 1 + Math.sin(orb.breath) * 0.14;
-    const glowRadius = (70 + Math.sin(orb.breath * 0.7) * 10) * breath;
-    const innerRadius = 11 * breath;
+    const resetCenter = getResetCenter();
+    let mainAlpha = orb.alpha;
 
-    const glow = ctx.createRadialGradient(orb.x, orb.y, 0, orb.x, orb.y, glowRadius);
-    glow.addColorStop(0, `rgba(255, 225, 190, ${0.26 * orb.alpha})`);
-    glow.addColorStop(0.42, `rgba(236, 206, 170, ${0.1 * orb.alpha})`);
-    glow.addColorStop(1, "rgba(255, 220, 170, 0)");
-    ctx.beginPath();
-    ctx.fillStyle = glow;
-    ctx.arc(orb.x, orb.y, glowRadius, 0, Math.PI * 2);
-    ctx.fill();
+    if (resetCenter) {
+      const resetDist = Math.hypot(resetCenter.x - orb.x, resetCenter.y - orb.y);
+      const engageRadius = 180;
+      const releaseRadius = 250;
+      let targetFusion = resetOrbSystem.fusion;
 
-    const core = ctx.createRadialGradient(orb.x, orb.y, 0, orb.x, orb.y, innerRadius);
-    core.addColorStop(0, `rgba(255, 240, 220, ${0.84 * orb.alpha})`);
-    core.addColorStop(1, `rgba(255, 210, 170, ${0.04 * orb.alpha})`);
-    ctx.beginPath();
-    ctx.fillStyle = core;
-    ctx.arc(orb.x, orb.y, innerRadius, 0, Math.PI * 2);
-    ctx.fill();
+      if (resetDist <= engageRadius) {
+        targetFusion = 1;
+      } else if (resetDist >= releaseRadius) {
+        targetFusion = 0;
+      }
+
+      resetOrbSystem.fusion += (targetFusion - resetOrbSystem.fusion) * 0.12;
+      mainAlpha *= 1 - resetOrbSystem.fusion * 0.22;
+
+      const resetAlpha = 0.95;
+      drawResetSatellites(now, resetCenter.x, resetCenter.y, resetAlpha, resetOrbSystem);
+      drawOrbCore(
+        resetCenter.x,
+        resetCenter.y,
+        resetAlpha,
+        0.78 + Math.sin(orb.breath * 1.1) * 0.08 + resetOrbSystem.fusion * 0.12
+      );
+    } else {
+      resetOrbSystem.fusion += (0 - resetOrbSystem.fusion) * 0.08;
+    }
+
+    drawOrbCore(orb.x, orb.y, mainAlpha, 1 + Math.sin(orb.breath) * 0.13);
   }
 
   function drawParticles(now) {
@@ -155,7 +291,12 @@
         : 1
       : 0.2;
 
-    const attractionRadius = stageState.particlesActive ? 180 : 130;
+    const attractionRadius = stageState.particlesActive
+      ? Math.hypot(width, height) * 0.52
+      : Math.hypot(width, height) * 0.34;
+
+    const resetCenter = getResetCenter();
+    const resetInfluence = resetCenter ? (1.05 + resetOrbSystem.fusion * 1.35) : 0;
 
     for (const p of particles) {
       const dx = orb.x - p.x;
@@ -163,9 +304,27 @@
       const dist = Math.hypot(dx, dy) || 1;
 
       if (orb.alpha > 0.03 && dist < attractionRadius) {
-        const pull = (1 - dist / attractionRadius) * (0.012 + p.z * 0.014) * orb.alpha;
+        const pull = (1 - dist / attractionRadius) * (0.006 + p.z * 0.01) * orb.alpha;
         p.vx += (dx / dist) * pull;
         p.vy += (dy / dist) * pull;
+      }
+
+      if (orb.alpha > 0.25 && stageState.particlesActive && dist >= attractionRadius) {
+        const globalPull = (0.00055 + p.z * 0.00045) * orb.alpha;
+        p.vx += (dx / dist) * globalPull;
+        p.vy += (dy / dist) * globalPull;
+      }
+
+      if (resetCenter && stageState.finalActive) {
+        const rdx = resetCenter.x - p.x;
+        const rdy = resetCenter.y - p.y;
+        const rdist = Math.hypot(rdx, rdy) || 1;
+        const resetRadius = attractionRadius * (0.28 + resetOrbSystem.fusion * 0.2);
+        if (rdist < resetRadius) {
+          const pullReset = (1 - rdist / resetRadius) * (0.006 + p.z * 0.008) * resetInfluence;
+          p.vx += (rdx / rdist) * pullReset;
+          p.vy += (rdy / rdist) * pullReset;
+        }
       }
 
       p.vx *= 0.997;
@@ -312,6 +471,13 @@
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   shuffle(phrases);
 
+  const resetControl = document.getElementById("resetExperience");
+  if (resetControl) {
+    resetControl.addEventListener("click", () => {
+      window.location.reload();
+    });
+  }
+
   const timeline = {
     orbIn: reduced ? 180 : 4500,
     particlesIn: reduced ? 300 : 8000,
@@ -359,6 +525,7 @@
 
   setTimeout(() => {
     document.body.classList.add("stage-final");
+    stageState.finalActive = true;
     const finalEl = document.getElementById("final");
     finalEl.setAttribute("aria-hidden", "false");
   }, timeline.finalIn);

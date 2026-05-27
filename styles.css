@@ -242,6 +242,115 @@ body.stage-final .final {
   opacity: 1;
 }
 
+.reset-control {
+  position: fixed;
+  left: 50%;
+  bottom: clamp(5.8rem, 12.5vh, 8.8rem);
+  transform: translateX(-50%);
+  width: 84px;
+  height: 84px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-soft);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 12;
+  cursor: pointer;
+  transition: opacity 1.5s var(--ease), filter 1.5s var(--ease), transform 0.8s var(--ease), color 0.8s var(--ease);
+  filter: blur(5px);
+}
+
+body.stage-final .reset-control {
+  opacity: 0.9;
+  pointer-events: auto;
+  filter: blur(0);
+}
+
+.reset-control::before,
+.reset-control::after {
+  content: none;
+}
+
+.reset-control__ring {
+  display: none;
+}
+
+.reset-control__label {
+  position: absolute;
+  left: 50%;
+  bottom: -1.8rem;
+  transform: translateX(-50%);
+  font-family: "Manrope", sans-serif;
+  font-size: 0.64rem;
+  font-weight: 300;
+  letter-spacing: 0.19em;
+  text-transform: lowercase;
+  color: var(--ink-soft);
+  opacity: 0.78;
+  text-shadow: 0 0 10px rgba(var(--warm), 0.14);
+  white-space: nowrap;
+  transition: color 0.8s var(--ease), opacity 0.8s var(--ease);
+}
+
+.reset-control:hover,
+.reset-control:focus-visible {
+  color: var(--ink);
+  transform: translateX(-50%) scale(1.045);
+}
+
+.reset-control:hover .reset-control__ring,
+.reset-control:focus-visible .reset-control__ring {
+  color: inherit;
+}
+
+.reset-control:hover .reset-control__label,
+.reset-control:focus-visible .reset-control__label {
+  color: var(--ink);
+  opacity: 1;
+}
+
+.reset-control:focus-visible {
+  outline: 2px solid rgba(var(--warm), 0.85);
+  outline-offset: 4px;
+}
+
+.credit-link {
+  position: fixed;
+  left: 50%;
+  bottom: max(1.3rem, calc(2.6vh + env(safe-area-inset-bottom)));
+  transform: translateX(-50%);
+  z-index: 12;
+  color: var(--ink-faint);
+  text-decoration: none;
+  font-family: "Manrope", sans-serif;
+  font-size: clamp(0.68rem, 0.92vw, 0.82rem);
+  font-weight: 300;
+  letter-spacing: 0.24em;
+  text-transform: lowercase;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1.6s var(--ease), color 0.8s var(--ease), text-shadow 0.8s var(--ease);
+}
+
+body.stage-particles .credit-link {
+  opacity: 0.78;
+  pointer-events: auto;
+}
+
+.credit-link:hover,
+.credit-link:focus-visible {
+  color: var(--ink-soft);
+  text-shadow: 0 0 20px rgba(var(--warm), 0.16);
+}
+
+.credit-link:focus-visible {
+  outline: 2px solid rgba(var(--warm), 0.72);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+
 .final__mark {
   font-family: "Cormorant Garamond", serif;
   font-weight: 300;
@@ -313,6 +422,22 @@ body.stage-final .final {
 
   .thought--far {
     font-size: clamp(1.05rem, 4.2vw, 1.45rem);
+  }
+
+  .reset-control {
+    width: 76px;
+    height: 76px;
+    bottom: clamp(6.1rem, 15vh, 9.8rem);
+  }
+
+  .reset-control__ring {
+    inset: 13px;
+  }
+
+  .credit-link {
+    bottom: max(1.1rem, calc(2.4vh + env(safe-area-inset-bottom)));
+    font-size: clamp(0.7rem, 3.6vw, 0.82rem);
+    letter-spacing: 0.18em;
   }
 }
 
