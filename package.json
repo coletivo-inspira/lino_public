@@ -1,0 +1,9 @@
+{
+  "name": "lino_public",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Static public site for LINO, ready for GitHub Pages deployment.",
+  "scripts": {
+    "build": "node ./scripts/build-pages.mjs"
+  }
+}
